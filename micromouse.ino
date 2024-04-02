@@ -1,5 +1,3 @@
-
-
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
@@ -10,9 +8,9 @@
 #define IN3 D6
 #define IN4 D7
 
-float kp = 0.1;
-float kd = 0.025;
-float ki = 0.001;
+float kp = 1;
+float kd = 0.005;
+float ki = 0.025;
 
 double angleX;
 double error_prior;
@@ -24,6 +22,7 @@ int leftSpeed;
 int rightSpeed;
 int baseSpeed = 255;
 int speedDifference; 
+bool flag = false;
 
 const int timeStepMs = 50;
 
@@ -86,12 +85,19 @@ void loop() {
     pid_inp = kp*error + ki*integral + kd*derivative;
 
     error_prior = error;
-    int baseSpeed = 255; 
-    int speedDifference = pid_inp * 10; 
-    int leftSpeed = constrain(baseSpeed - speedDifference, 0, 255);
-    int rightSpeed = constrain(baseSpeed + speedDifference, 0, 255);
+    int baseSpeedL = 200;
+    int baseSpeedR = 200; 
+    int speedDifference = pid_inp * 5; 
+    int leftSpeed = constrain(baseSpeedL - speedDifference, 0, 255);
+    int rightSpeed = constrain(baseSpeedR + speedDifference, 0, 255);
 
     //Control motors based on calculated speeds
+    // start motors after half a second
+    if(!flag)
+    {
+      delay(500);
+      flag=true;
+    }
     analogWrite(IN1, leftSpeed);
     analogWrite(IN2, 0); 
     analogWrite(IN3, 0); 
