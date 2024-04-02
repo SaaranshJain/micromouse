@@ -1,4 +1,4 @@
-// Basic demo for accelerometer readings from Adafruit MPU6050
+
 
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
@@ -19,6 +19,11 @@ double error_prior;
 double error;
 double integral;
 double pid_inp;
+
+int leftSpeed;
+int rightSpeed;
+int baseSpeed = 255;
+int speedDifference; 
 
 const int timeStepMs = 50;
 
@@ -53,16 +58,25 @@ void setup(void) {
 }
 
 void loop() {
-    analogWrite(IN1, 255);
-    analogWrite(IN2, 0);
-    analogWrite(IN3, 0);
-    analogWrite(IN4, 255);
+    // analogWrite(IN1, 255);
+    // analogWrite(IN2, 0);
+    // analogWrite(IN3, 0);
+    // analogWrite(IN4, 255);
 
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
     if (abs(g.gyro.x) >= 0.05) {
         angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
+        
+        error = 0 - angleX;
+        integral += ((double) (error * timeStepMs)/1000.0) ;
+        double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
+        pid_inp = kp*error + ki*integral + kd*derivative;
+
+        error_prior = error;
+        
+
     }
 
     // pid
@@ -72,7 +86,23 @@ void loop() {
     pid_inp = kp*error + ki*integral + kd*derivative;
 
     error_prior = error;
+    int baseSpeed = 255; 
+    int speedDifference = pid_inp * 10; 
+    int leftSpeed = constrain(baseSpeed - speedDifference, 0, 255);
+    int rightSpeed = constrain(baseSpeed + speedDifference, 0, 255);
 
-    Serial.println(pid_inp);
+    //Control motors based on calculated speeds
+    analogWrite(IN1, leftSpeed);
+    analogWrite(IN2, 0); 
+    analogWrite(IN3, 0); 
+    analogWrite(IN4, rightSpeed);
+
+    Serial.print("left= ");
+    Serial.println(leftSpeed);
+    Serial.print("right= " );
+    Serial.println(rightSpeed);
     delay(timeStepMs);
+
+  
+    
 }
