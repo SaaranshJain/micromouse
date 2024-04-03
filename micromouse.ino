@@ -17,12 +17,25 @@ double error_prior;
 double error;
 double integral;
 double pid_inp;
+double zero = 0.0;
 
 int leftSpeed;
 int rightSpeed;
 int baseSpeed = 255;
 int speedDifference; 
 bool flag = false;
+
+enum MouseState {
+    Forward,
+    StartTurnLeft,
+    StartTurnRight,
+    StartTurnAround,
+    Turning,
+    PostTurn,
+    Stop
+}
+
+MouseState state = MouseState.Stop;
 
 const int timeStepMs = 50;
 
@@ -57,46 +70,105 @@ void setup(void) {
 }
 
 void loop() {
-    // analogWrite(IN1, 255);
-    // analogWrite(IN2, 0);
-    // analogWrite(IN3, 0);
-    // analogWrite(IN4, 255);
-
     sensors_event_t a, g, temp;
+    int leftSpeed, rightSpeed;
     mpu.getEvent(&a, &g, &temp);
 
-    if (abs(g.gyro.x) >= 0.05) {
-        angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
-        
-        error = 0 - angleX;
+    if (state == MouseState.Stop) {
+        leftSpeed = 0;
+        rightSpeed = 0;
+    } else if (state == MouseState.Forward) {
+        // if (abs(g.gyro.x) >= 0.05) {
+        //     angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
+            
+        //     error = 0 - angleX;
+        //     integral += ((double) (error * timeStepMs)/1000.0) ;
+        //     double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
+        //     pid_inp = kp*error + ki*integral + kd*derivative;
+
+        //     error_prior = error;
+            
+
+        // }
+
+        // pid
+        error = zero - angleX;
         integral += ((double) (error * timeStepMs)/1000.0) ;
         double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
         pid_inp = kp*error + ki*integral + kd*derivative;
 
         error_prior = error;
-        
-
+        int baseSpeedL = 200;
+        int baseSpeedR = 200; 
+        int speedDifference = pid_inp * 5; 
+        leftSpeed = constrain(baseSpeedL - speedDifference, 0, 255);
+        rightSpeed = constrain(baseSpeedR + speedDifference, 0, 255);
+    } else if (state == MouseState.StartTurnLeft) {
+        error_prior = 0.0;
+        error = 0.0;
+        integral = 0.0;
+        zero = (zero + 90.0) % 360.0;
+        state = MouseState.Turning;
+    } else if (state == MouseState.StartTurnRight) {
+        error_prior = 0.0;
+        error = 0.0;
+        integral = 0.0;
+        zero = (zero - 90.0) % 360.0;
+        state = MouseState.Turning;
+    } else if (state == MouseState.StartTurnAround) {
+        error_prior = 0.0;
+        error = 0.0;
+        integral = 0.0;
+        zero = (zero + 180.0) % 360.0;
+        state = MouseState.Turning;
     }
 
-    // pid
-    error = 0 - angleX;
-    integral += ((double) (error * timeStepMs)/1000.0) ;
-    double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
-    pid_inp = kp*error + ki*integral + kd*derivative;
+    if (state == MouseState.Turning) {
+        // if (abs(g.gyro.x) >= 0.05) {
+        //     angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
+            
+        //     error = 0 - angleX;
+        //     integral += ((double) (error * timeStepMs)/1000.0) ;
+        //     double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
+        //     pid_inp = kp*error + ki*integral + kd*derivative;
 
-    error_prior = error;
-    int baseSpeedL = 200;
-    int baseSpeedR = 200; 
-    int speedDifference = pid_inp * 5; 
-    int leftSpeed = constrain(baseSpeedL - speedDifference, 0, 255);
-    int rightSpeed = constrain(baseSpeedR + speedDifference, 0, 255);
+        //     error_prior = error;
+            
 
-    //Control motors based on calculated speeds
+        // }
+
+        // pid
+        error = zero - angleX;
+
+        if (error <= 0.5) {
+            state = MouseState.PostTurn;
+        } else {
+            integral += ((double) (error * timeStepMs)/1000.0) ;
+            double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
+            pid_inp = kp*error + ki*integral + kd*derivative;
+
+            error_prior = error;
+            int baseSpeedL = 200;
+            int baseSpeedR = 200; 
+            int speedDifference = pid_inp * 5; 
+            leftSpeed = constrain(baseSpeedL - speedDifference, 0, 255);
+            rightSpeed = constrain(baseSpeedR + speedDifference, 0, 255);
+        }
+    }
+
+    if (state == MouseState.PostTurn) {
+        // PID to realign to center of lane, use ultrasound PENDING MASSIVE
+        // once equal, stop
+        state = MouseState.Stop;
+        leftSpeed = 0;
+        rightSpeed = 0;
+    }
+
+    // Control motors based on calculated speeds
     // start motors after half a second
-    if(!flag)
-    {
-      delay(500);
-      flag=true;
+    if (!flag) {
+        delay(500);
+        flag=true;
     }
     analogWrite(IN1, leftSpeed);
     analogWrite(IN2, 0); 
@@ -107,8 +179,5 @@ void loop() {
     Serial.println(leftSpeed);
     Serial.print("right= " );
     Serial.println(rightSpeed);
-    delay(timeStepMs);
-
-  
-    
+    delay(timeStepMs);    
 }
