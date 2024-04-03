@@ -1,26 +1,10 @@
-#include <iostream>
 #include <queue>
 #include <set>
 #include <vector>
 #include <string>
 #include "floodfill.hpp"
 
-Maze::Maze(char filename[50]) {
-    FILE* fp = fopen(filename, "r");
-
-    matrix = (int*) calloc(33*33, sizeof(int));
-    int i = 0;
-
-    fscanf(fp, "%d", &(matrix[i++]));
-
-    while(!feof(fp)) {
-        fscanf(fp, "%d", &(matrix[i++]));
-    }
-
-    fclose(fp);
-}
-
-void Maze::printmaze(int* matrix) {
+void printmaze(int* matrix) {
     for (int i = 0; i < 33*33; i++) {
         if ((i + 1) % 33 == 0) {
             printf("%d\n", matrix[i]);
@@ -102,18 +86,39 @@ Micromouse::Micromouse() {
     x_dir = 0;
     y_dir = 1;
     floodfill(15, 15);
+    curr_x = 1;
+    curr_y = 1;
 }
 
-void Micromouse::place_mouse(unsigned short x, unsigned short y) {
-    curr_x = x;
-    curr_y = y;
-}
+bool Micromouse::go_forward(double distanceF, double distanceL, double distanceR, unsigned short goal_x, unsigned short goal_y) {
+    // physically set mouse moving
 
-bool Micromouse::go_forward(Maze maze, unsigned short goal_x, unsigned short goal_y) {
-    unsigned short to_see_ind = (this->curr_y + this->y_dir)*(2*16 + 1) + this->curr_x + this->x_dir;
+    if (distanceL < 20) {
+        if (this->x_dir == 0 && this->y_dir == -1) {
+            this->mapped_matrix[(this->curr_y)*(2*16 + 1) + this->curr_x - 1] = -1;
+        } else if (this->x_dir == 1 && this->y_dir == 0) {
+            this->mapped_matrix[(this->curr_y - 1)*(2*16 + 1) + this->curr_x] = -1;
+        } else if (this->x_dir == 0 && this->y_dir == 1) {
+            this->mapped_matrix[(this->curr_y)*(2*16 + 1) + this->curr_x + 1] = -1;
+        } else {
+            this->mapped_matrix[(this->curr_y + 1)*(2*16 + 1) + this->curr_x] = -1;
+        }
+    }
 
-    if (maze.matrix[to_see_ind] == -1) {
-        this->mapped_matrix[to_see_ind] = -1;
+    if (distanceR < 20) {
+        if (this->x_dir == 0 && this->y_dir == -1) {
+            this->mapped_matrix[(this->curr_y)*(2*16 + 1) + this->curr_x + 1] = -1;
+        } else if (this->x_dir == 1 && this->y_dir == 0) {
+            this->mapped_matrix[(this->curr_y + 1)*(2*16 + 1) + this->curr_x] = -1;
+        } else if (this->x_dir == 0 && this->y_dir == 1) {
+            this->mapped_matrix[(this->curr_y)*(2*16 + 1) + this->curr_x - 1] = -1;
+        } else {
+            this->mapped_matrix[(this->curr_y - 1)*(2*16 + 1) + this->curr_x] = -1;
+        }
+    }
+
+    if (distanceF < 20) {
+        this->mapped_matrix[(this->curr_y + this->y_dir)*(2*16 + 1) + this->curr_x + this->x_dir] = -1;
         this->floodfill(goal_x, goal_y);
         return false;
     }
@@ -128,16 +133,41 @@ void Micromouse::set_dir(char x_dir, char y_dir) {
     this->y_dir = y_dir;
 }
 
-std::vector<std::pair<int, int>> Micromouse::navigate_maze(Maze maze, bool to_goal) {
+void Micromouse::turnRight() {
+    // physically turn right
+
+    char temp = this->x_dir;
+    this->x_dir = -(this->y_dir);
+    this->y_dir = temp;
+}
+
+void Micromouse::turnLeft() {
+    // physically turn left
+
+    char temp = this->x_dir;
+    this->x_dir = this->y_dir;
+    this->y_dir = -temp;
+}
+
+void Micromouse::turnAround() {
+    // physically turn around
+
+    this->x_dir *= -1;
+    this->y_dir *= -1;
+}
+
+std::vector<std::pair<int, int>> Micromouse::navigate_maze(double distanceF, double distanceL, double distanceR, bool to_goal) {
     std::vector<std::pair<int, int>> res;
     unsigned short goal_x = to_goal ? 15 : 1;
     unsigned short goal_y = to_goal ? 15 : 1;
 
     while (curr_x != goal_x || curr_y != goal_y) {
-        bool forward_res = this->go_forward(maze, goal_x, goal_y);
+        bool forward_res = this->go_forward(distanceF, distanceL, distanceR, goal_x, goal_y);
 
         if (forward_res) {
             res.push_back(std::pair { curr_x, curr_y });
+        } else {
+            // physically stop mouse
         }
 
         int up_val, right_val, left_val, down_val;
@@ -147,21 +177,53 @@ std::vector<std::pair<int, int>> Micromouse::navigate_maze(Maze maze, bool to_go
         down_val = this->mapped_matrix[(this->curr_y + 1)*(2*16 + 1) + this->curr_x];
         
         int min = up_val;
-        this->set_dir(0, -1);
+
+        if (this->x_dir == 0 && this->y_dir == -1) {
+        } else if (this->x_dir == 1 && this->y_dir == 0) {
+            this->turnLeft();
+        } else if (this->x_dir == 0 && this->y_dir == 1) {
+            this->turnAround();
+        } else {
+            this->turnRight();
+        }
 
         if (min == -1 || (right_val < min && right_val != -1)) {
             min = right_val;
-            this->set_dir(1, 0);
+            
+            if (this->x_dir == 0 && this->y_dir == -1) {
+                this->turnRight();
+            } else if (this->x_dir == 1 && this->y_dir == 0) {
+            } else if (this->x_dir == 0 && this->y_dir == 1) {
+                this->turnLeft();
+            } else {
+                this->turnAround();
+            }
         }
 
         if (min == -1 || (left_val < min && left_val != -1)) {
             min = left_val;
-            this->set_dir(-1, 0);
+            
+            if (this->x_dir == 0 && this->y_dir == -1) {
+                this->turnLeft();
+            } else if (this->x_dir == 1 && this->y_dir == 0) {
+                this->turnAround();
+            } else if (this->x_dir == 0 && this->y_dir == 1) {
+                this->turnRight();
+            } else {
+            }
         }
 
         if (min == -1 || (down_val < min && down_val != -1)) {
             min = down_val;
-            this->set_dir(0, 1);
+            
+            if (this->x_dir == 0 && this->y_dir == -1) {
+                this->turnAround();
+            } else if (this->x_dir == 1 && this->y_dir == 0) {
+                this->turnRight();
+            } else if (this->x_dir == 0 && this->y_dir == 1) {
+            } else {
+                this->turnLeft();
+            }
         }
 
         // Maze::printmaze(mapped_matrix);
@@ -174,16 +236,14 @@ std::vector<std::pair<int, int>> Micromouse::navigate_maze(Maze maze, bool to_go
 }
 
 int main(int argc, char** argv) {
-    Maze maze { argv[1] };
     Micromouse mouse {};
 
-    mouse.place_mouse(1, 1);
     std::vector<std::pair<int, int>> path1 = mouse.navigate_maze(maze, true);
 
     mouse.floodfill(1, 1);
     std::vector<std::pair<int, int>> path2 = mouse.navigate_maze(maze, false);
 
-    std::cout << "Path1 length: " << path1.size() << " and path2 length: " << path2.size() << "\n";
+    // std::cout << "Path1 length: " << path1.size() << " and path2 length: " << path2.size() << "\n";
 
     // std::cout << "[";
     // for (auto e: path1) {
@@ -191,11 +251,11 @@ int main(int argc, char** argv) {
     // }
     // std::cout << "]\n";
 
-    std::cout << "[";
-    for (auto e: path2) {
-        std::cout << "(" << e.first << ", " << e.second << "), ";
-    }
-    std::cout << "]\n";
+    // std::cout << "[";
+    // for (auto e: path2) {
+    //     std::cout << "(" << e.first << ", " << e.second << "), ";
+    // }
+    // std::cout << "]\n";
 
     return 0;
 }
