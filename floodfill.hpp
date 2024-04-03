@@ -5,6 +5,7 @@ enum ActionType {
     GoForward,
     TurnRight,
     TurnLeft,
+    TurnAround
 };
 
 struct Action {
@@ -14,13 +15,7 @@ struct Action {
 
 typedef struct Action Action;
 
-class Maze {
-    public:
-    int* matrix;
-
-    Maze(char filename[50]);
-    static void printmaze(int* matrix);
-};
+void printmaze(int* matrix);
 
 class Micromouse {
     public:
@@ -31,9 +26,11 @@ class Micromouse {
     char y_dir;
 
     Micromouse();
-    void place_mouse(unsigned short x, unsigned short y);
-    bool go_forward(Maze maze, unsigned short x, unsigned short y);
+    bool go_forward(double distanceF, double distanceL, double distanceR, unsigned short goal_x, unsigned short goal_y);
     void set_dir(char x_dir, char y_dir);
+    void turnRight();
+    void turnLeft();
+    void turnAround();
     std::vector<std::pair<int, int>> navigate_maze(Maze maze, bool to_goal);
     void floodfill(unsigned short goal_x, unsigned short goal_y);
 };
