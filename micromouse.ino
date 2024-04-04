@@ -17,25 +17,28 @@ double error_prior;
 double error;
 double integral;
 double pid_inp;
-double zero = 0.0;
+int zero = 0;
+int state = 6;
 
+int time_elapsed = 0;
 int leftSpeed;
 int rightSpeed;
 int baseSpeed = 255;
+// int drivef = 10;
 int speedDifference; 
 bool flag = false;
 
-enum MouseState {
-    Forward,
-    StartTurnLeft,
-    StartTurnRight,
-    StartTurnAround,
-    Turning,
-    PostTurn,
-    Stop
-}
+// enum MouseState {
+//     Forward0,
+//     StartTurnLeft1,
+//     StartTurnRight2,
+//     StartTurnAround3,
+//     Turning4,
+//     PostTurn5,
+//     Stop6
+// }
 
-MouseState state = MouseState.Stop;
+
 
 const int timeStepMs = 50;
 
@@ -70,96 +73,107 @@ void setup(void) {
 }
 
 void loop() {
+    // set state acc to ultrasound and floodfill
+    // if (time_elapsed == 5000){
+    //   state = 0;
+    // }
+    // else if (time_elapsed == 10000){
+    //   state = 6;
+    // }
+    // else if (time_elapsed == 12000){
+    //   state = 0;
+    // }
+    // else if (time_elapsed == 17000){
+    //   state = 3;
+    // }
+    // else if (time_elapsed == 22000){
+    //   state = 0;
+    // }
+    // else if (time_elapsed == 24000){
+    //     state = 6;
+    // }
+    // else if (time_elapsed == 26000){
+    //     state = 0;
+    // }
+    // else if (time_elapsed == 30000){
+    //     state = 3;
+    // }
+    // else if (time_elapsed == 35000){
+    //     state = 6;
+    // }
     sensors_event_t a, g, temp;
     int leftSpeed, rightSpeed;
     mpu.getEvent(&a, &g, &temp);
+    angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
 
-    if (state == MouseState.Stop) {
+    if (state == 6) {
         leftSpeed = 0;
         rightSpeed = 0;
-    } else if (state == MouseState.Forward) {
-        // if (abs(g.gyro.x) >= 0.05) {
-        //     angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
-            
-        //     error = 0 - angleX;
-        //     integral += ((double) (error * timeStepMs)/1000.0) ;
-        //     double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
-        //     pid_inp = kp*error + ki*integral + kd*derivative;
 
-        //     error_prior = error;
-            
-
-        // }
-
+    } 
+    else if (state == 0) {
         // pid
-        error = zero - angleX;
+        error = (double) zero - angleX;
         integral += ((double) (error * timeStepMs)/1000.0) ;
         double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
         pid_inp = kp*error + ki*integral + kd*derivative;
 
         error_prior = error;
-        int baseSpeedL = 200;
-        int baseSpeedR = 200; 
+        int baseSpeedL = 255;
+        int baseSpeedR = 255; 
         int speedDifference = pid_inp * 5; 
         leftSpeed = constrain(baseSpeedL - speedDifference, 0, 255);
         rightSpeed = constrain(baseSpeedR + speedDifference, 0, 255);
-    } else if (state == MouseState.StartTurnLeft) {
+        // Serial.print("inside ur mom: ");
+        // Serial.println(angleX);
+
+    } 
+    else if (state == 1) {
         error_prior = 0.0;
         error = 0.0;
         integral = 0.0;
-        zero = (zero + 90.0) % 360.0;
-        state = MouseState.Turning;
-    } else if (state == MouseState.StartTurnRight) {
+        zero = (zero + 90) % 360;
+        state = 4;
+    } 
+    else if (state == 2) {
         error_prior = 0.0;
         error = 0.0;
         integral = 0.0;
-        zero = (zero - 90.0) % 360.0;
-        state = MouseState.Turning;
-    } else if (state == MouseState.StartTurnAround) {
+        zero = (zero - 90) % 360;
+        state = 4;
+    } 
+    else if (state == 3) {
         error_prior = 0.0;
         error = 0.0;
         integral = 0.0;
-        zero = (zero + 180.0) % 360.0;
-        state = MouseState.Turning;
+        zero = (zero + 180) % 360;
+        state = 4;
     }
 
-    if (state == MouseState.Turning) {
-        // if (abs(g.gyro.x) >= 0.05) {
-        //     angleX += (((double) (g.gyro.x * timeStepMs)) / 1000.0) * (180 / M_PI);
-            
-        //     error = 0 - angleX;
-        //     integral += ((double) (error * timeStepMs)/1000.0) ;
-        //     double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
-        //     pid_inp = kp*error + ki*integral + kd*derivative;
-
-        //     error_prior = error;
-            
-
-        // }
-
+    if (state == 4) {
         // pid
         error = zero - angleX;
 
-        if (error <= 0.5) {
-            state = MouseState.PostTurn;
-        } else {
+         if (error <= abs(0.5)) {
+             state = 5;
+         } else {
             integral += ((double) (error * timeStepMs)/1000.0) ;
             double derivative =  ((double) ((error - error_prior) / timeStepMs) * 1000.0);
             pid_inp = kp*error + ki*integral + kd*derivative;
 
             error_prior = error;
-            int baseSpeedL = 200;
-            int baseSpeedR = 200; 
-            int speedDifference = pid_inp * 5; 
+            int baseSpeedL = 255;
+            int baseSpeedR = 255; 
+            int speedDifference = pid_inp * 10; 
             leftSpeed = constrain(baseSpeedL - speedDifference, 0, 255);
             rightSpeed = constrain(baseSpeedR + speedDifference, 0, 255);
         }
     }
 
-    if (state == MouseState.PostTurn) {
+    if (state == 5) {
         // PID to realign to center of lane, use ultrasound PENDING MASSIVE
         // once equal, stop
-        state = MouseState.Stop;
+        state = 6;
         leftSpeed = 0;
         rightSpeed = 0;
     }
@@ -170,14 +184,20 @@ void loop() {
         delay(500);
         flag=true;
     }
+
     analogWrite(IN1, leftSpeed);
     analogWrite(IN2, 0); 
-    analogWrite(IN3, 0); 
-    analogWrite(IN4, rightSpeed);
+    analogWrite(IN3, rightSpeed); 
+    analogWrite(IN4, 0);
 
-    Serial.print("left= ");
-    Serial.println(leftSpeed);
-    Serial.print("right= " );
-    Serial.println(rightSpeed);
+    // Serial.print("left= ");
+    // Serial.println(leftSpeed);
+    // Serial.print("right= " );
+    // Serial.println(rightSpeed);
+    // Serial.print("Main: ");
+    // Serial.println(error);
+    
     delay(timeStepMs);    
+    time_elapsed += timeStepMs;
+
 }
